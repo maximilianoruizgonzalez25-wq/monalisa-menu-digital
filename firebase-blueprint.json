@@ -1,0 +1,25 @@
+{
+  "entities": {
+    "plate": {
+      "title": "Plate",
+      "description": "A delicious dish in the restaurant menu",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier of the dish" },
+        "name": { "type": "string", "description": "Name of the dish" },
+        "description": { "type": "string", "description": "Ingredients or details of the dish" },
+        "price": { "type": "number", "description": "Price of the dish in USD" },
+        "category": { "type": "string", "description": "Category of the dish (e.g. Entradas, Ensaladas, Principales, Pastas, Hamburguesas, Infantil, Postres)" },
+        "popular": { "type": "boolean", "description": "Whether this item is featured as popular" },
+        "image": { "type": "string", "description": "Optional image URL representing the dish" }
+      },
+      "required": ["name", "price", "category"]
+    }
+  },
+  "firestore": {
+    "plates": {
+      "schema": "plate",
+      "description": "Collection of all available plates / dishes in the menu"
+    }
+  }
+}

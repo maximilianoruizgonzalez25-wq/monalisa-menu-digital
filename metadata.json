@@ -1,0 +1,6 @@
+{
+  "name": "Monalisa Menu Digital",
+  "description": "Landing Page profesional con buscador, filtros de categorias, carrito y checkout a WhatsApp para el restaurante Monalisa en Puerto Ordaz. Optimizado para descargas rapidas en redes moviles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

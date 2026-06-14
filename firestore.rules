@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net default catch-all - Deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions for validating Plate documents
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidPlate(data) {
+      return data.keys().hasAll(['name', 'price', 'category'])
+        && data.keys().size() >= 3
+        && data.keys().size() <= 8
+        && data.name is string && data.name.size() <= 100
+        && data.price is number && data.price >= 0 && data.price <= 5000
+        && data.category is string && data.category.size() <= 50
+        && (!('description' in data) || (data.description is string && data.description.size() <= 1000))
+        && (!('popular' in data) || (data.popular is bool))
+        && (!('image' in data) || (data.image is string && data.image.size() <= 500))
+        && (!('options' in data) || (data.options is list && data.options.size() <= 20));
+    }
+
+    // Plates collection: Anyone can read/list dishes to browse the restaurant menu.
+    // Writes (create) are allowed anonymously/publicly IF they match the schema definition,
+    // which enables automated client-side menu seeding when the database is empty.
+    // Update and delete are forbidden to secure existing entries.
+    match /plates/{plateId} {
+      allow read, get: if true;
+      allow list: if true;
+      allow create: if isValidId(plateId) && isValidPlate(incoming());
+      allow update, delete: if false;
+    }
+  }
+}

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      // Defensive safe-guard against modern libraries (e.g., formdata-polyfill, node-fetch)
+      // that attempt to write or assign to window/global/self/globalThis.fetch in constrained,
+      // sandboxed, or getter-only iframe environments.
+      (function() {
+        try {
+          const winDesc = Object.getOwnPropertyDescriptor(window, 'fetch');
+          const protoDesc = Object.getOwnPropertyDescriptor(Window.prototype, 'fetch');
+          const desc = winDesc || protoDesc;
+          
+          if (desc && (desc.configurable || desc.configurable === undefined)) {
+            const originalFetch = window.fetch;
+            let currentFetch = originalFetch;
+            
+            Object.defineProperty(window, 'fetch', {
+              configurable: true,
+              enumerable: true,
+              get: function() {
+                return currentFetch;
+              },
+              set: function(newValue) {
+                console.log('🛡️ Protected fetch setter invoked. Intercepting assignment.');
+                currentFetch = newValue;
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('🛡️ Fetch setter safeguard could not be initialized:', e);
+        }
+      })();
+    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
