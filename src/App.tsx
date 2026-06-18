@@ -45,53 +45,92 @@ export default function App() {
     try {
       const stored = localStorage.getItem(CART_STORAGE_KEY);
       if (stored) {
-        setCartItems(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          // Robust check: filter out any null/undefined or items without valid dish objects
+          const validItems = parsed.filter(
+            (item) => item && item.dish && typeof item.dish.id === 'string' && typeof item.quantity === 'number'
+          );
+          setCartItems(validItems);
+        } else {
+          setCartItems([]);
+        }
       }
     } catch (e) {
       console.warn('Failed to recover cart from localStorage', e);
+      setCartItems([]);
     }
   }, []);
 
-  // Persist cart additions
+  // Persist cart additions safely
   const saveCart = (items: CartItem[]) => {
-    setCartItems(items);
+    const safeItems = Array.isArray(items) ? items.filter(
+      (item) => item && item.dish && typeof item.dish.id === 'string'
+    ) : [];
+    setCartItems(safeItems);
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(safeItems));
     } catch (e) {
       console.warn('Failed to persist cart to localStorage', e);
     }
   };
 
   const handleAddToCart = (dish: Dish, quantity: number, selectedOption?: string) => {
-    const existingIndex = cartItems.findIndex(
-      (item) => item.dish.id === dish.id && item.selectedOption === selectedOption
-    );
+    if (!dish || !dish.id) return;
 
-    let newItems = [...cartItems];
-    if (existingIndex > -1) {
-      newItems[existingIndex].quantity += quantity;
-    } else {
-      newItems.push({ dish, quantity, selectedOption });
-    }
+    // Use functional state update to prevent stale closures or race conditions
+    setCartItems((prevItems) => {
+      const currentItems = Array.isArray(prevItems) ? prevItems : [];
+      const existingIndex = currentItems.findIndex(
+        (item) => item && item.dish && item.dish.id === dish.id && item.selectedOption === selectedOption
+      );
 
-    saveCart(newItems);
+      // Create new objects instead of mutating state references directly
+      let newItems = currentItems.map(item => ({ ...item }));
+      if (existingIndex > -1) {
+        newItems[existingIndex].quantity += quantity;
+      } else {
+        newItems.push({ dish, quantity, selectedOption });
+      }
+
+      // Sync to localStorage
+      try {
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(newItems));
+      } catch (e) {
+        console.warn('Failed to persist cart to localStorage', e);
+      }
+
+      return newItems;
+    });
   };
 
   const handleUpdateProductQuantity = (dishId: string, quantity: number, selectedOption?: string) => {
-    let newItems = [...cartItems];
-    const index = newItems.findIndex(
-      (item) => item.dish.id === dishId && item.selectedOption === selectedOption
-    );
+    if (!dishId) return;
 
-    if (index > -1) {
-      if (quantity <= 0) {
-        newItems.splice(index, 1);
-        trackEvent('remove_from_cart', { dish_id: dishId, option: selectedOption || 'none' });
-      } else {
-        newItems[index].quantity = quantity;
+    setCartItems((prevItems) => {
+      const currentItems = Array.isArray(prevItems) ? prevItems : [];
+      const index = currentItems.findIndex(
+        (item) => item && item.dish && item.dish.id === dishId && item.selectedOption === selectedOption
+      );
+
+      if (index > -1) {
+        let newItems = currentItems.map(item => ({ ...item }));
+        if (quantity <= 0) {
+          newItems.splice(index, 1);
+          trackEvent('remove_from_cart', { dish_id: dishId, option: selectedOption || 'none' });
+        } else {
+          newItems[index].quantity = quantity;
+        }
+        
+        try {
+          localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(newItems));
+        } catch (e) {
+          console.warn('Failed to persist cart to localStorage', e);
+        }
+        return newItems;
       }
-      saveCart(newItems);
-    }
+      return currentItems;
+    });
   };
 
   const handleClearCart = () => {
@@ -99,7 +138,9 @@ export default function App() {
     setIsCartOpen(false);
   };
 
-  const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+  const totalCartCount = Array.isArray(cartItems)
+    ? cartItems.reduce((acc, item) => acc + (item?.quantity || 0), 0)
+    : 0;
 
   return (
     <div className="min-h-screen bg-[#050507] text-[#eaeaea] font-sans antialiased selection:bg-pink-500/30 selection:text-white" id="main-restaurant-application">

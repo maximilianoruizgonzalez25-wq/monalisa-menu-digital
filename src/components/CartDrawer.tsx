@@ -28,7 +28,7 @@ export default function CartDrawer({
   exchangeRateInfo
 }: CartDrawerProps) {
   // Configurable restaurant WhatsApp contact number in Venezuela (starts with 58)
-  const WHATSAPP_PHONE = '584148632644'; // Example authentic Puerto Ordaz contact WhatsApp
+  const WHATSAPP_PHONE = '584148634148'; // Example authentic Puerto Ordaz contact WhatsApp
 
   const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('pickup');
   const [customerName, setCustomerName] = useState('');
@@ -38,22 +38,27 @@ export default function CartDrawer({
   const USD_TO_VES = usdToVes;
 
   const getAdjustedPrice = (item: CartItem): number => {
+    if (!item || !item.dish) return 0;
     const { dish, selectedOption } = item;
-    if (!selectedOption) return dish.price;
+    if (!selectedOption) return dish.price || 0;
 
-    if (selectedOption.includes('+ $2.00')) return dish.price + 2.0;
-    if (selectedOption.includes('+ $3.00')) return dish.price + 3.0;
-    if (selectedOption.includes('+ $3.50')) return dish.price + 3.5;
-    if (selectedOption.includes('+ $4.50')) return dish.price + 4.5;
-    return dish.price;
+    if (selectedOption.includes('+ $2.00')) return (dish.price || 0) + 2.0;
+    if (selectedOption.includes('+ $3.00')) return (dish.price || 0) + 3.0;
+    if (selectedOption.includes('+ $3.50')) return (dish.price || 0) + 3.5;
+    if (selectedOption.includes('+ $4.50')) return (dish.price || 0) + 4.5;
+    return dish.price || 0;
   };
 
   const calculateSubtotal = () => {
-    return cartItems.reduce((acc, item) => acc + (getAdjustedPrice(item) * item.quantity), 0);
+    if (!Array.isArray(cartItems)) return 0;
+    return cartItems.reduce((acc, item) => {
+      if (!item || !item.dish) return acc;
+      return acc + (getAdjustedPrice(item) * (item.quantity || 0));
+    }, 0);
   };
 
   const handleSendOrder = () => {
-    if (cartItems.length === 0) return;
+    if (!Array.isArray(cartItems) || cartItems.length === 0) return;
     if (!customerName.trim()) {
       alert('Por favor, indica tu nombre para procesar el pedido.');
       return;
@@ -84,6 +89,7 @@ export default function CartDrawer({
     message += `\n🛒 *DETALLE DEL PEDIDO:*\n`;
 
     cartItems.forEach((item, index) => {
+      if (!item || !item.dish) return;
       const unitPrice = getAdjustedPrice(item);
       const totalItem = unitPrice * item.quantity;
       const optionStr = item.selectedOption ? ` (${item.selectedOption})` : '';
@@ -108,7 +114,7 @@ export default function CartDrawer({
     const encodedText = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${WHATSAPP_PHONE}?text=${encodedText}`;
     
-    // Open WhatsApp checkout link securely
+    // Always open in a new tab/window to prevent the parent SPA from being replaced or loading a blank page in in-app WebViews/browsers.
     window.open(whatsappUrl, '_blank');
   };
 
@@ -180,7 +186,7 @@ export default function CartDrawer({
                 </div>
 
                 <div className="divide-y divide-zinc-900 border-t border-b border-zinc-900" id="cart-item-scroller">
-                  {cartItems.map((item, idx) => {
+                  {cartItems.filter(item => item && item.dish).map((item, idx) => {
                     const price = getAdjustedPrice(item);
                     return (
                       <div key={idx} className="py-3 flex justify-between gap-3" id={`cart-row-${idx}`}>
